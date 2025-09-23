@@ -598,7 +598,7 @@ export default apiInitializer((api) => {
       const withImages = topics.filter(topicHasImage);
 
       if (withImages.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No topics with images found for "${category?.title || 'category'}".</div>`;
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No topics found for "${category?.title || 'category'}".</div>`;
         if (viewAllLink) viewAllLink.href = "#";
         return;
       }
