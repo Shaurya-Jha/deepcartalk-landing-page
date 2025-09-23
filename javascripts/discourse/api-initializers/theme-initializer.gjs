@@ -433,7 +433,8 @@ export default apiInitializer((api) => {
     // Example: slugs for your forum categories like 'news', 'announcements', 'members'
     const categories = [
       { key: "catA", title: "Travelogues", slug: "travelogues" },
-      { key: "catB", title: "Latest", slug: "latest" },
+      // { key: "catB", title: "Latest", slug: "latest" },
+      { key: "catB", title: "Technical Stuff", slug: "technical-stuff" },
       { key: "catC", title: "Owner Reports", slug: "owner-reports" },
     ];
 
