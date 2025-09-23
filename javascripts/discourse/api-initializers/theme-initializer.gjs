@@ -429,7 +429,6 @@ export default apiInitializer((api) => {
 
   // --- NEWS / CATEGORY TAB LOGIC ---
   function initNewsCategories() {
-    // categories you want
     const categories = [
       { key: "catA", title: "Travelogues", slug: "travelogues" },
       { key: "catB", title: "Technical Stuff", slug: "technical-stuff" },
@@ -447,7 +446,7 @@ export default apiInitializer((api) => {
       .join("");
 
     // try multiple endpoints until we get topics (returns array)
-    function fetchCategoryTopics(slug, limit = 9) {
+    function fetchCategoryTopics(slug, limit = 12) {
       const endpoints = [
         `/c/${encodeURIComponent(slug)}.json`,
         `/c/${encodeURIComponent(slug)}/l/latest.json`,
@@ -468,17 +467,47 @@ export default apiInitializer((api) => {
       return chain.catch(() => Promise.resolve([]));
     }
 
-    // single renderer for all cases
+    // helper: detect if a topic has a usable image URL (matches logic used elsewhere)
+    function topicHasImage(t) {
+      if (!t) return false;
+      if (t.image_url || t.image) return true;
+      if (t.details && (t.details.small_image_url || t.details.image_url)) return true;
+
+      const candidates = [
+        t.excerpt,
+        t.fancy_title,
+        t.featured_media,
+        t.custom_thumbnail,
+        t.link,
+        ...(t.post_stream && t.post_stream.posts && t.post_stream.posts.length ? [t.post_stream.posts[0].cooked] : [])
+      ].filter(Boolean);
+
+      for (const c of candidates) {
+        if (typeof c !== "string") continue;
+        // obvious image url
+        if (/(https?:\/\/\S+\.(?:png|jpe?g|gif)(\?\S*)?)/i.test(c)) return true;
+        // img tag in cooked html
+        if (/<img\s+[^>]*src=/i.test(c)) return true;
+        // YouTube thumbnail available
+        if (youtubeThumbnail(c)) return true;
+        // Vimeo (we treat as having media, even if placeholder)
+        if (isVimeo(c)) return true;
+      }
+      return false;
+    }
+
+    // single renderer that shows only topics with images
     function renderCategoryGrid(topics, category, options = {}) {
       if (!grid) return;
       const columns = options.columns || GRID_COLUMNS || 3;
       grid.style.setProperty('--cols', columns);
 
-      const safeTopics = Array.isArray(topics) ? topics.slice(0, GRID_MAX_ITEMS) : [];
+      const arr = Array.isArray(topics) ? topics : [];
+      // filter to only topics that have images
+      const withImages = arr.filter(topicHasImage).slice(0, GRID_MAX_ITEMS);
 
-      // If no topics found, show placeholder and hide the view-all link
-      if (safeTopics.length === 0) {
-        grid.innerHTML = `<div style="grid-column:1/-1;color:#aaa">No topics found for "${category?.title || 'category'}".</div>`;
+      if (withImages.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No image topics found for "${category?.title || 'category'}".</div>`;
         if (viewAllLink) {
           viewAllLink.href = "#";
           viewAllLink.style.display = "none";
@@ -487,32 +516,31 @@ export default apiInitializer((api) => {
         return;
       }
 
-      // Build HTML items
-      const itemsHtml = safeTopics.map(t => {
+      const itemsHtml = withImages.map(t => {
         const title = (t.title || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || (`/t/${t.id}`));
         const postsCount = t.posts_count ?? t.post_count ?? "";
         const poster = (t.details && t.details.last_posted_by) ? t.details.last_posted_by.username : (t.created_by?.username || "");
         const bumped = t.bumped_at || t.created_at || "";
 
-        // image detection (same logic as earlier)
+        // extract media URL (same approach as earlier in your file)
         let mediaSrc = t.image_url || t.image || (t.details && (t.details.small_image_url || t.details.image_url)) || "";
         const candidates = [
           t.custom_thumbnail,
           t.featured_media,
           ...(t.post_stream && t.post_stream.posts && t.post_stream.posts.length ? [t.post_stream.posts[0].cooked] : []),
-          t.excerpt, t.fancy_title, t.link, t.video_url
+          t.excerpt,
+          t.fancy_title,
+          t.link,
+          t.video_url
         ].filter(Boolean);
 
         for (const c of candidates) {
           if (!mediaSrc && typeof c === "string") {
-            // try direct image url
             const imgMatch = c.match(/(https?:\/\/\S+\.(?:png|jpe?g|gif)(\?\S*)?)/i);
             if (imgMatch) { mediaSrc = imgMatch[1]; break; }
-            // try <img src="...">
             const imgTagMatch = c.match(/<img\s+[^>]*src=(?:'|")([^'"]+)(?:'|")/i);
             if (imgTagMatch) { mediaSrc = imgTagMatch[1]; break; }
-            // youtube/vimeo detection
             const yt = youtubeThumbnail(c);
             if (yt) { mediaSrc = yt; break; }
             if (isVimeo(c)) { mediaSrc = PLACEHOLDER; break; }
@@ -520,8 +548,8 @@ export default apiInitializer((api) => {
         }
 
         if (!mediaSrc) mediaSrc = PLACEHOLDER;
-        const mediaTypeIsVideo = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(mediaSrc);
-        const playOverlay = mediaTypeIsVideo ? `<div class="play-overlay" aria-hidden="true">▶</div>` : "";
+        const mediaIsVideo = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(mediaSrc);
+        const playOverlay = mediaIsVideo ? `<div class="play-overlay" aria-hidden="true">▶</div>` : "";
         const alt = `Topic: ${t.title || "Untitled"}`;
 
         return `
@@ -538,7 +566,6 @@ export default apiInitializer((api) => {
 
       grid.innerHTML = itemsHtml;
 
-      // set view-all link to the category page and show it
       if (viewAllLink && category && category.slug) {
         viewAllLink.href = `/c/${encodeURIComponent(category.slug)}`;
         viewAllLink.style.display = "";
@@ -546,7 +573,7 @@ export default apiInitializer((api) => {
       }
     }
 
-    // initial load for the first tab
+    // initial load for first tab
     const firstCategory = categories[0];
     fetchCategoryTopics(firstCategory.slug)
       .then(topics => renderCategoryGrid(topics, firstCategory))
@@ -558,14 +585,12 @@ export default apiInitializer((api) => {
         ev.preventDefault();
         const idx = parseInt(a.dataset.idx, 10);
         if (isNaN(idx)) return;
-        // set active classes
         Array.from(tabsContainer.querySelectorAll("a")).forEach(x => x.classList.remove("active"));
         a.classList.add("active");
 
         const cat = categories[idx];
-        // optimistic UI while fetching
         grid.innerHTML = `<div style="grid-column:1/-1;color:#999">Loading ${cat.title}…</div>`;
-        // set view-all to the category immediately (will be hidden if no topics)
+        // optimistic link update
         if (viewAllLink && cat?.slug) {
           viewAllLink.href = `/c/${encodeURIComponent(cat.slug)}`;
           viewAllLink.style.display = "";
@@ -575,6 +600,7 @@ export default apiInitializer((api) => {
       });
     });
   }
+
 
   // function initNewsCategories() {
   //   // <-- change these to your desired categories (slugs or ids). Use slugs if possible.
