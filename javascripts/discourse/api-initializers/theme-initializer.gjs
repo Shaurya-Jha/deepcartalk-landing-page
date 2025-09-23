@@ -449,8 +449,8 @@ export default apiInitializer((api) => {
     function fetchCategoryTopics(slug, limit = 12) {
       const endpoints = [
         `/c/${encodeURIComponent(slug)}.json`,
-        `/c/${encodeURIComponent(slug)}/l/latest.json`,
-        `/latest.json?category=${encodeURIComponent(slug)}`
+        // `/c/${encodeURIComponent(slug)}/l/latest.json`,
+        // `/latest.json?category=${encodeURIComponent(slug)}`
       ];
 
       let chain = Promise.reject();
