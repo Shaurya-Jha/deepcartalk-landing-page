@@ -483,11 +483,30 @@ export default apiInitializer((api) => {
       const columns = options.columns || GRID_COLUMNS || 3;
       grid.style.setProperty('--cols', columns);
 
+      // if (!topics || topics.length === 0) {
+      //   grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No topics found for "${category?.title || 'category'}".</div>`;
+      //   if (viewAllLink) viewAllLink.href = "#";
+      //   return;
+      // }
+
       if (!topics || topics.length === 0) {
         grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No topics found for "${category?.title || 'category'}".</div>`;
-        if (viewAllLink) viewAllLink.href = "#";
+        if (viewAllLink) {
+          viewAllLink.href = "#";
+          viewAllLink.style.display = "none";    // hide the link when empty
+          viewAllLink.setAttribute("aria-hidden", "true");
+        }
         return;
       }
+
+      grid.innerHTML = itemsHtml;
+      if (viewAllLink && category && category.slug) {
+        viewAllLink.href = `/c/${encodeURIComponent(category.slug)}`;
+        viewAllLink.style.display = "";         // restore default display when we have data
+        viewAllLink.removeAttribute("aria-hidden");
+      }
+
+
 
       const itemsHtml = topics.slice(0, GRID_MAX_ITEMS).map(t => {
         const title = (t.title || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
