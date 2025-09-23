@@ -452,7 +452,7 @@ export default apiInitializer((api) => {
     function fetchCategoryTopics(slug, limit = 9) {
       // primary: category listing (common Discourse endpoint)
       const endpoints = [
-        `/c/${encodeURIComponent(slug)}/l/latest.json`,
+        // `/c/${encodeURIComponent(slug)}/l/latest.json`,
         `/c/${encodeURIComponent(slug)}.json`,
         `/latest.json?category=${encodeURIComponent(slug)}`,
       ];
