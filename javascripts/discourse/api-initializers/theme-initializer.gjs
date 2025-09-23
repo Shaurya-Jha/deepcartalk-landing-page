@@ -454,7 +454,7 @@ export default apiInitializer((api) => {
       const endpoints = [
         // `/c/${encodeURIComponent(slug)}/l/latest.json`,
         `/c/${encodeURIComponent(slug)}.json`,
-        `/latest.json?category=${encodeURIComponent(slug)}`,
+        // `/latest.json?category=${encodeURIComponent(slug)}`,
       ];
 
       // try endpoints sequentially until one returns topics
