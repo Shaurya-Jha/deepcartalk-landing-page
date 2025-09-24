@@ -222,8 +222,7 @@ export default apiInitializer((api) => {
       }
     }
 
-    // ajax("/top/monthly.json")
-    ajax("/latest.json")
+    ajax("/top/monthly.json")
       .then((response) => {
         const topics = (response.topic_list?.topics || []).slice(0, 5);
         const topicsWithImages = topics.filter(t => !!t.image_url);
@@ -444,9 +443,9 @@ export default apiInitializer((api) => {
   // --- NEWS / CATEGORY TAB LOGIC ---
   function initNewsCategories() {
     const categories = [
-      { key: "catA", title: "Travelogues", slug: "travelogues" },
-      { key: "catB", title: "Technical Stuff", slug: "technical-stuff" },
-      { key: "catC", title: "Owner Reports", slug: "owner-reports" },
+      { key: "catA", title: "Owner reports", slug: "owner-reports" },
+      { key: "catB", title: "Travelogues", slug: "travelogues" },
+      { key: "catC", title: "Technical stuff", slug: "technical-stuff" },
     ];
 
     const tabsContainer = document.getElementById("category-tabs");
