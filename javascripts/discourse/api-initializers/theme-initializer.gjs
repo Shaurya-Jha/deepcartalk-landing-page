@@ -223,7 +223,7 @@ export default apiInitializer((api) => {
     }
 
     // ajax("/top/monthly.json")
-    ajax("/top.json")
+    ajax("/latest.json")
       .then((response) => {
         const topics = (response.topic_list?.topics || []).slice(0, 5);
         const topicsWithImages = topics.filter(t => !!t.image_url);
