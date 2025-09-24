@@ -260,17 +260,60 @@ export default apiInitializer((api) => {
         main.innerHTML = `
           <style>
             /* layout root */
+            // .main-container {
+            //   width: 100%;
+            //   max-width: 1100px;
+            //   margin: 20px auto;
+            //   padding: 0 16px;
+            //   display: grid;
+            //   grid-template-columns: 660px 300px;
+            //   gap: 20px;
+            //   box-sizing: border-box;
+            // }
+
+            /* REPLACE your .main-container block with this (no hardcoded max-width) */
             .main-container {
               width: 100%;
-              // max-width: 1100px;
-              max-width: w-full;
               margin: 20px auto;
               padding: 0 16px;
               display: grid;
-              grid-template-columns: 660px 300px;
+              /* left is flexible (can shrink), right is bounded by percentage (not hard px) */
+              grid-template-columns: minmax(0, 1fr) minmax(220px, 34%);
               gap: 20px;
               box-sizing: border-box;
+              overflow: visible;
             }
+
+            /* ensure grid children can shrink below their content if needed */
+            .main-container > * {
+              min-width: 0; /* critical for preventing grid overflow caused by long content/images */
+            }
+
+            /* make images and media fully responsive inside the grid items */
+            .main-container img {
+              max-width: 100%;
+              height: auto;
+              display: block;
+              object-fit: cover;
+            }
+
+            /* medium screens slightly tighter spacing - still no max-width used */
+            @media (max-width: 1200px) {
+              .main-container {
+                grid-template-columns: minmax(0, 1fr) minmax(200px, 40%);
+                gap: 16px;
+              }
+            }
+
+            /* collapse to single column below 900px (your previous rule) */
+            @media (max-width: 900px) {
+              .main-container {
+                grid-template-columns: 1fr;
+              }
+              .news-grid { grid-template-columns: 1fr !important; }
+              .view-all { text-align: left; }
+            }
+
 
             /* section box common */
             .section-box {
@@ -317,9 +360,9 @@ export default apiInitializer((api) => {
             }
 
             /* smaller carousel on narrow screens */
-            @media (max-width: 900px) {
-              .carousel-item img { height: 260px; }
-            }
+            // @media (max-width: 900px) {
+            //   .carousel-item img { height: 260px; }
+            // }
             @media (max-width: 480px) {
               .carousel-item img { height: 180px; }
             }
@@ -398,19 +441,19 @@ export default apiInitializer((api) => {
             .hot-threads a { display: flex; justify-content: space-between; padding: 10px 15px; color: #ccc; text-decoration: none; border-radius: 6px; }
 
             /* Responsive: collapse to single column on small screens */
-            @media (max-width: 900px) {
-              .main-container {
-                grid-template-columns: 1fr;
-              }
-              /* stack carousel and updates first, then hot post */
-              .left-column { order: 0; }
-              .right-column { order: 1; }
-              /* make news grid single column */
-              .news-grid { grid-template-columns: 1fr !important; }
-              /* enlarge titles/hits for touch */
-              .news-tabs a { padding: 12px 10px; font-size: 0.95rem; }
-              .view-all { text-align: left; }
-            }
+            // @media (max-width: 900px) {
+            //   .main-container {
+            //     grid-template-columns: 1fr;
+            //   }
+            //   /* stack carousel and updates first, then hot post */
+            //   .left-column { order: 0; }
+            //   .right-column { order: 1; }
+            //   /* make news grid single column */
+            //   .news-grid { grid-template-columns: 1fr !important; }
+            //   /* enlarge titles/hits for touch */
+            //   .news-tabs a { padding: 12px 10px; font-size: 0.95rem; }
+            //   .view-all { text-align: left; }
+            // }
 
             /* Ultra small screens improvements */
             @media (max-width: 480px) {
@@ -1044,7 +1087,23 @@ requestAnimationFrame(() => {
 
 // const GRID_MAX_ITEMS = 6;          // show up to 6 items
 // let GRID_COLUMNS = 3;             // set 2 or 3 (3 -> 3x2, 2 -> 2x3)
+
+// // --- URL normalization helper (upgrade http -> https / make relative absolute) ---
+// function normalizeUrl(url) {
+//   if (!url || typeof url !== "string") return url;
+//   const s = url.trim();
+//   // keep data: and blob: URIs as-is
+//   if (/^(data:|blob:)/i.test(s)) return s;
+//   // already protocol-relative or https
+//   if (/^\/\/|^https:\/\//i.test(s)) return s;
+//   if (/^http:\/\//i.test(s)) return s.replace(/^http:/i, "https:");
+//   // relative path -> make absolute against current origin
+//   if (s.indexOf("/") === 0) return `${window.location.origin}${s}`;
+//   return s;
+// }
+
 // const PLACEHOLDER = "/images/placeholder.png"; // update path
+// const NORMALIZED_PLACEHOLDER = normalizeUrl(PLACEHOLDER);
 
 // // cache for fetched tabs: { tabKey: topicsArray }
 // const topicsCache = {};
@@ -1186,8 +1245,6 @@ requestAnimationFrame(() => {
 //     // 4) last-resort: linear search in primaryMap for an entry whose aliases include this name
 //     for (const canonical in primaryMap) {
 //       if (!primaryMap.hasOwnProperty(canonical)) continue;
-//       // check alias map reverse: aliasMap[name] could have been set earlier; but try to be flexible and
-//       // check if any alias maps to this canonical (aliasMap entries were built from search_aliases)
 //       if (aliasMap[name] === canonical && primaryMap[canonical].url) {
 //         return `<img class="emoji" alt=":${rawName}:" src="${primaryMap[canonical].url}" style="height:1em;vertical-align:-0.15em">`;
 //       }
@@ -1202,50 +1259,50 @@ requestAnimationFrame(() => {
 //   let _carouselIntervalId = null;
 
 //   // --- HOT THREADS ---
-//     function loadHotThreads(limit = 10) {
-//       // load emojis and hot topics in parallel (we still load emojis for fallback)
-//       Promise.all([ loadCustomEmojisOnce(), ajax("/hot.json") ])
-//         .then(([customMap, resp]) => {
-//           const topics = (resp.topic_list?.topics || []).slice(0, limit);
-//           const ul = document.querySelector(".hot-threads .box-content ul");
-//           if (!ul) return;
-    
-//           if (topics.length === 0) {
-//             ul.innerHTML = `<li style="color:#aaa;padding:10px;">No hot threads right now.</li>`;
-//             return;
+//   function loadHotThreads(limit = 10) {
+//     // load emojis and hot topics in parallel (we still load emojis for fallback)
+//     Promise.all([ loadCustomEmojisOnce(), ajax("/hot.json") ])
+//       .then(([customMap, resp]) => {
+//         const topics = (resp.topic_list?.topics || []).slice(0, limit);
+//         const ul = document.querySelector(".hot-threads .box-content ul");
+//         if (!ul) return;
+
+//         if (topics.length === 0) {
+//           ul.innerHTML = `<li style="color:#aaa;padding:10px;">No hot threads right now.</li>`;
+//           return;
+//         }
+
+//         ul.innerHTML = topics.map(t => {
+//           // prefer unicode_title (server-rendered emoji glyphs), then fancy_title, then title
+//           const unicode = t.unicode_title;
+//           const raw = unicode || t.fancy_title || t.title || "";
+
+//           // If we have a unicode_title, use it directly (escape for HTML but keep the emoji glyphs).
+//           // If not, fall back to escaping + replacing shortcodes via emoji map.
+//           let processed;
+//           if (unicode) {
+//             // escape (safe) — emoji characters are preserved by escapeHtml
+//             processed = escapeHtml(String(unicode));
+//           } else {
+//             const escaped = escapeHtml(String(raw));
+//             processed = replaceShortcodesWithImages(escaped, customMap);
 //           }
-    
-//           ul.innerHTML = topics.map(t => {
-//             // prefer unicode_title (server-rendered emoji glyphs), then fancy_title, then title
-//             const unicode = t.unicode_title;
-//             const raw = unicode || t.fancy_title || t.title || "";
-    
-//             // If we have a unicode_title, use it directly (escape for HTML but keep the emoji glyphs).
-//             // If not, fall back to escaping + replacing shortcodes via emoji map.
-//             let processed;
-//             if (unicode) {
-//               // escape (safe) — emoji characters are preserved by escapeHtml
-//               processed = escapeHtml(String(unicode));
-//             } else {
-//               const escaped = escapeHtml(String(raw));
-//               processed = replaceShortcodesWithImages(escaped, customMap);
-//             }
-    
-//             const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || (`/t/${t.id}`));
-//             return `
-//               <li>
-//                 <a href="${url}">
-//                   <span>${processed}</span>
-//                   <span>►</span>
-//                 </a>
-//               </li>
-//             `;
-//           }).join("");
-//         })
-//         .catch((err) => {
-//           console.error("[hot-threads] fetch failed", err);
-//         });
-//     }
+
+//           const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || (`/t/${t.id}`));
+//           return `
+//             <li>
+//               <a href="${url}">
+//                 <span>${processed}</span>
+//                 <span>►</span>
+//               </a>
+//             </li>
+//           `;
+//         }).join("");
+//       })
+//       .catch((err) => {
+//         console.error("[hot-threads] fetch failed", err);
+//       });
+//   }
 
 
 //   // --- TOP 5 / CAROUSEL (unchanged above this point) ---
@@ -1263,7 +1320,8 @@ requestAnimationFrame(() => {
 //       }
 //     }
 
-//     ajax("/top/monthly.json")
+//     // ajax("/top/monthly.json")
+//     ajax("/latest.json")
 //       .then((response) => {
 //         const topics = (response.topic_list?.topics || []).slice(0, 5);
 //         const topicsWithImages = topics.filter(t => !!t.image_url);
@@ -1273,28 +1331,23 @@ requestAnimationFrame(() => {
 //         const carouselItemsHtml = topicsWithImages.map(t => {
 //           const title = (t.title || "").replace(/"/g, "&quot;");
 //           const topicUrl = `/t/${t.slug || ""}/${t.id}`; // fallback: `/t/${t.id}`
+//           const imgSrc = normalizeUrl(t.image_url || t.image || NORMALIZED_PLACEHOLDER);
 //           return `
 //             <div class="carousel-item" data-title="${title}" data-topic-id="${t.id}">
 //               <a href="${topicUrl}">
-//                 <img src="${t.image_url}" alt="${title}" loading="lazy">
+//                 <img src="${imgSrc}" alt="${title}" loading="lazy">
 //               </a>
 //             </div>
 //           `;
 //         }).join("");
-
-
-//         // const carouselItemsHtml = topicsWithImages.map(t => `
-//         //   <div class="carousel-item" data-title="${(t.title || "").replace(/"/g, "&quot;")}" data-topic-id="${t.id}">
-//         //     <img src="${t.image_url}" alt="${(t.title || "").replace(/"/g, "&quot;")}" loading="lazy">
-//         //   </div>
-//         // `).join("");
 
 //         main.innerHTML = `
 //           <style>
 //             /* layout root */
 //             .main-container {
 //               width: 100%;
-//               max-width: 1100px;
+//               // max-width: 1100px;
+//               max-width: w-full;
 //               margin: 20px auto;
 //               padding: 0 16px;
 //               display: grid;
@@ -1323,12 +1376,6 @@ requestAnimationFrame(() => {
 //             .box-content { padding: 15px; }
 
 //             /* Carousel */
-//             // .carousel { position: relative; overflow: hidden; border-radius: 10px; }
-//             // .carousel-track { display: flex; transition: transform 0.6s ease; will-change: transform; }
-//             // .carousel-item { flex-shrink: 0; width: 100%; }
-//             // /* use fixed visual height with object-fit so cropping is predictable on mobile */
-//             // .carousel-item img { width: 100%; height: 380px; object-fit: cover; display: block; }
-//             /* Carousel - fully responsive, no JS width calculations */
 //             .carousel { position: relative; overflow: hidden; border-radius: 10px; }
 //             .carousel-track {
 //               display: flex;
@@ -1352,7 +1399,6 @@ requestAnimationFrame(() => {
 //               object-fit: cover;
 //               display: block;
 //             }
-
 
 //             /* smaller carousel on narrow screens */
 //             @media (max-width: 900px) {
@@ -1622,19 +1668,21 @@ requestAnimationFrame(() => {
 //             if (imgTagMatch) { mediaSrc = imgTagMatch[1]; break; }
 //             const yt = youtubeThumbnail(c);
 //             if (yt) { mediaSrc = yt; break; }
-//             if (isVimeo(c)) { mediaSrc = PLACEHOLDER; break; }
+//             if (isVimeo(c)) { mediaSrc = NORMALIZED_PLACEHOLDER; break; }
 //           }
 //         }
 
-//         if (!mediaSrc) mediaSrc = PLACEHOLDER;
-//         const mediaIsVideo = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(mediaSrc);
+//         if (!mediaSrc) mediaSrc = NORMALIZED_PLACEHOLDER;
+//         else mediaSrc = normalizeUrl(mediaSrc);
+
+//         const mediaIsVideo = isVideoFile(mediaSrc);
 //         const playOverlay = mediaIsVideo ? `<div class="play-overlay" aria-hidden="true">▶</div>` : "";
 //         const alt = `Topic: ${t.title || "Untitled"}`;
 
 //         return `
 //           <div class="news-item">
 //             <a href="${url}" class="thumb" aria-label="${alt}">
-//               <img loading="lazy" src="${mediaSrc}" alt="${alt}" onerror="this.onerror=null;this.src='${PLACEHOLDER}';">
+//               <img loading="lazy" src="${mediaSrc}" alt="${alt}" onerror="this.onerror=null;this.src='${NORMALIZED_PLACEHOLDER}';">
 //               ${playOverlay}
 //             </a>
 //             <a href="${url}" class="title">${title}</a>
@@ -1759,51 +1807,6 @@ requestAnimationFrame(() => {
 //     track.__carouselDestroy = destroy;
 //   }
 
-//   // function initCarousel() {
-//   //   const track = document.querySelector('.carousel-track');
-//   //   const items = Array.from(document.querySelectorAll('.carousel-item'));
-//   //   const title = document.getElementById('carousel-title');
-//   //   if (!track || items.length === 0) return;
-//   //   track.style.width = `${items.length * 100}%`;
-//   //   items.forEach(item => item.style.width = `${100 / items.length}%`);
-//   //   const titles = items.map(item => item.dataset.title || "");
-//   //   let currentIndex = 0;
-//   //   const intervalTime = 3000;
-//   //   function updateCarousel() {
-//   //     const shiftPercent = (100 / items.length) * currentIndex;
-//   //     track.style.transform = `translateX(-${shiftPercent}%)`;
-//   //     if (title && titles.length > 0) title.textContent = titles[currentIndex] || "";
-//   //   }
-//   //   function nextSlide() {
-//   //     currentIndex = (currentIndex + 1) % items.length;
-//   //     updateCarousel();
-//   //   }
-//   //   updateCarousel();
-//   //   // clear any previous interval
-//   //   if (_carouselIntervalId) clearInterval(_carouselIntervalId);
-//   //   _carouselIntervalId = setInterval(nextSlide, intervalTime);
-//   // }
-
-//   // helpers to mount/unmount safely
-//   function mountHomepage() {
-//     if (document.getElementById("homepage-main")) return; // already mounted
-//     console.info("LANDING-COMP: mounting homepage component");
-//     loadTop5();
-//   }
-
-//   function unmountHomepage() {
-//     const el = document.getElementById("homepage-main");
-//     if (el) {
-//       const wrapper = el.closest(".section-box") || el;
-//       wrapper.remove();
-//       console.info("LANDING-COMP: unmounted homepage component");
-//     }
-//     if (_carouselIntervalId) {
-//       clearInterval(_carouselIntervalId);
-//       _carouselIntervalId = null;
-//     }
-//   }
-
 //   // home-route detection (keeps your robust checks)
 //   function isHomepageRoute(api) {
 //     try {
@@ -1826,18 +1829,277 @@ requestAnimationFrame(() => {
 //     }
 //   }
 
-//   // React to route changes: mount every time we are on the homepage
-//   api.onPageChange(() => {
-//     const isHome = isHomepageRoute(api);
-//     console.debug("LANDING-COMP: onPageChange => isHome=", isHome);
-//     if (isHome) mountHomepage();
-//     else unmountHomepage();
+
+//   // ------- STRONGER outlet-aware mount/unmount with verbose diagnostics -------
+
+// let _homepageMounted = false;
+// let _renderInProgress = false;
+// let _routeListenerRegistered = false;
+
+// /** health check for homepage-main node */
+// function homepageElementIsHealthy() {
+//   const el = document.getElementById("homepage-main");
+//   if (!el) return false;
+//   if (!document.body.contains(el)) return false;
+//   if (!el.innerHTML || el.innerHTML.trim().length < 10) return false;
+//   return true;
+// }
+
+// /**
+//  * Wait up to `timeoutMs` for *any* selector from the comma-separated selector list to appear.
+//  * Returns the element found and the selector that matched, or null if timeout.
+//  */
+// function waitForAnySelector(selectorList, timeoutMs = 3000) {
+//   const selectors = String(selectorList || "").split(",").map(s => s.trim()).filter(Boolean);
+//   return new Promise((resolve) => {
+//     // quick check
+//     for (const sel of selectors) {
+//       const ex = document.querySelector(sel);
+//       if (ex) return resolve({ el: ex, sel });
+//     }
+
+//     let resolved = false;
+//     let observer = null;
+//     let tid = null;
+
+//     function checkAndResolve() {
+//       if (resolved) return;
+//       for (const sel of selectors) {
+//         const ex = document.querySelector(sel);
+//         if (ex) {
+//           resolved = true;
+//           if (observer) observer.disconnect();
+//           if (tid) clearTimeout(tid);
+//           return resolve({ el: ex, sel });
+//         }
+//       }
+//     }
+
+//     observer = new MutationObserver(checkAndResolve);
+//     observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+
+//     tid = setTimeout(() => {
+//       if (resolved) return;
+//       resolved = true;
+//       if (observer) observer.disconnect();
+//       resolve(null);
+//     }, timeoutMs);
+//   });
+// }
+
+// /** Remove homepage and clear carousel state */
+// function unmountHomepage() {
+//   _homepageMounted = false;
+//   _renderInProgress = false;
+
+//   try {
+//     const el = document.getElementById("homepage-main");
+//     if (el && document.body.contains(el)) {
+//       el.remove();
+//       console.info("LANDING-COMP: removed #homepage-main");
+//     }
+//   } catch (e) {
+//     console.warn("LANDING-COMP: unmountHomepage error", e);
+//   }
+
+//   if (_carouselIntervalId) {
+//     clearInterval(_carouselIntervalId);
+//     _carouselIntervalId = null;
+//   }
+//   const track = document.querySelector('.carousel-track');
+//   if (track && typeof track.__carouselDestroy === "function") {
+//     try { track.__carouselDestroy(); } catch (e) { /* ignore */ }
+//     track.__carouselDestroy = null;
+//   }
+// }
+
+// /**
+//  * Try rendering into a list of outlet NAMES and pick the one that results in #homepage-main
+//  * being placed inside one of the desired parent selectors (e.g. #main-outlet, .wrap).
+//  *
+//  * - outletNames: list of outlet names to try (Ember names like "main", "application", or your theme's)
+//  * - desiredParentSelectors: where you want #homepage-main to live (page outlet)
+//  */
+// async function mountHomepageTryOutletNames({
+//   outletNames = ["above-main-container", "main", "application", "main-outlet", "site", "above-site-header"],
+//   desiredParentSelectors = ["#main-outlet", ".wrap", ".container"],
+//   perAttemptTimeout = 50
+// } = {}) {
+//   // guard
+//   if (_renderInProgress) {
+//     console.debug("LANDING-COMP: mount in progress — skipping new mount");
+//     return;
+//   }
+//   _renderInProgress = true;
+
+//   // remove any previous instance
+//   try { 
+//     const prev = document.getElementById("homepage-main");
+//     if (prev && prev.parentNode) prev.remove();
+//   } catch (e) { /* ignore */ }
+
+//   // helper: check whether homepage is inside a desired parent
+//   function homepageInsideDesiredParent() {
+//     const home = document.getElementById("homepage-main");
+//     if (!home) return null;
+//     for (const sel of desiredParentSelectors) {
+//       const parent = document.querySelector(sel);
+//       if (parent && parent.contains(home)) return { home, parent, matchedSelector: sel };
+//     }
+//     return null;
+//   }
+
+//   // Attempt each outlet name once
+//   for (const outletName of outletNames) {
+//     try {
+//       console.debug(`LANDING-COMP: trying api.renderInOutlet("${outletName}")`);
+//       // remove any previous instance before attempting
+//       try {
+//         const existing = document.getElementById("homepage-main");
+//         if (existing && existing.parentNode) existing.remove();
+//       } catch (e) { /* ignore */ }
+
+//       // call renderInOutlet
+//       try {
+//         api.renderInOutlet(outletName, <template><div id="homepage-main"></div></template>);
+//       } catch (eRender) {
+//         console.debug(`LANDING-COMP: renderInOutlet("${outletName}") threw:`, eRender && eRender.message);
+//       }
+
+//       // small tick to allow Ember to attach the node
+//       await new Promise(r => setTimeout(r, perAttemptTimeout));
+
+//       // check if Ember placed homepage-main
+//       const created = document.getElementById("homepage-main");
+//       if (!created) {
+//         console.debug(`LANDING-COMP: renderInOutlet("${outletName}") did not create #homepage-main (or was removed)`);
+//         continue;
+//       }
+
+//       // check if placed inside desired parent
+//       const inside = homepageInsideDesiredParent();
+//       if (inside) {
+//         console.info(`LANDING-COMP: renderInOutlet("${outletName}") placed homepage inside desired parent (${inside.matchedSelector}).`);
+//         _homepageMounted = true;
+//         _renderInProgress = false;
+//         return { success: true, outletName, matchedSelector: inside.matchedSelector };
+//       }
+
+//       // Not in desired parent — log the parent Ember used for visibility
+//       console.warn(`LANDING-COMP: renderInOutlet("${outletName}") placed homepage in unexpected parent:`, created.parentNode);
+//       // remove the misplaced node before next attempt to avoid duplicates
+//       try { created.remove(); } catch (e) { /* ignore */ }
+//     } catch (eOuter) {
+//       console.error("LANDING-COMP: error during outlet-name attempt", eOuter);
+//     }
+//   }
+
+//   // If we reach here, none of the outletNames placed homepage into a desired parent.
+//   // As a last resort create a manual container inside the first desired parent (deterministic, single insertion).
+//   try {
+//     // remove any leftover
+//     const previous = document.getElementById("homepage-main");
+//     if (previous && previous.parentNode) previous.remove();
+
+//     // pick the first desired parent that exists
+//     let parent = null;
+//     for (const sel of desiredParentSelectors) {
+//       const p = document.querySelector(sel);
+//       if (p) { parent = p; break; }
+//     }
+//     if (!parent) parent = document.body;
+
+//     const container = document.createElement("div");
+//     container.id = "homepage-main";
+//     // insert at top of parent but after header if possible
+//     const header = parent.querySelector("header, .header");
+//     if (header && header.nextSibling) header.parentNode.insertBefore(container, header.nextSibling);
+//     else parent.insertBefore(container, parent.firstChild);
+
+//     console.warn("LANDING-COMP: fallback manual insert of #homepage-main into", parent);
+//     _homepageMounted = true;
+//     _renderInProgress = false;
+//     return { success: true, fallback: true, parentSelector: parent.tagName + (parent.id ? `#${parent.id}` : "") };
+//   } catch (eFinal) {
+//     console.error("LANDING-COMP: final fallback insert failed", eFinal);
+//     _renderInProgress = false;
+//     return { success: false, error: eFinal };
+//   }
+// }
+
+
+// async function mountHomepage() {
+//   if (homepageElementIsHealthy()) { _homepageMounted = true; return; }
+
+//   const res = await mountHomepageTryOutletNames({
+//     outletNames: ["above-main-container", "main", "application", "main-outlet"],
+//     desiredParentSelectors: ["#main-outlet", ".wrap", ".container"],
+//     perAttemptTimeout: 60
 //   });
 
-//   // initial check for the first load
+//   if (res && res.success) {
+//     // populate only after container actually exists
+//     if (document.getElementById("homepage-main")) {
+//       try { loadTop5(); } catch (e) { console.error("loadTop5() threw", e); }
+//     }
+//   } else {
+//     console.error("LANDING-COMP: mountHomepage failed to bind to an outlet", res);
+//   }
+// }
+
+
+// /** ensure a single route listener and call mount/unmount accordingly */
+// function ensureRouteListener() {
+//   if (_routeListenerRegistered) return;
+//   _routeListenerRegistered = true;
+
+//   try {
+//     const router = api.container.lookup("service:router");
+//     if (router && typeof router.on === "function") {
+//       router.on("routeDidChange", () => {
+//         requestAnimationFrame(() => {
+//           const isHome = isHomepageRoute(api);
+//           console.debug("LANDING-COMP: routeDidChange -> isHome=", isHome);
+//           if (isHome) {
+//             if (!homepageElementIsHealthy()) requestAnimationFrame(() => mountHomepage());
+//             else _homepageMounted = true;
+//           } else {
+//             unmountHomepage();
+//           }
+//         });
+//       });
+//       return;
+//     }
+//   } catch (e) {
+//     // fallback to api.onPageChange below
+//   }
+
+//   api.onPageChange(() => {
+//     setTimeout(() => requestAnimationFrame(() => {
+//       const isHome = isHomepageRoute(api);
+//       console.debug("LANDING-COMP: onPageChange -> isHome=", isHome);
+//       if (isHome) {
+//         if (!homepageElementIsHealthy()) mountHomepage();
+//         else _homepageMounted = true;
+//       } else {
+//         unmountHomepage();
+//       }
+//     }), 0);
+//   });
+// }
+
+// // initial registration + initial check
+// ensureRouteListener();
+// requestAnimationFrame(() => {
 //   const initialIsHome = isHomepageRoute(api);
 //   console.debug("LANDING-COMP: initialIsHome=", initialIsHome);
-//   if (initialIsHome) mountHomepage();
+//   if (initialIsHome) {
+//     if (!homepageElementIsHealthy()) mountHomepage();
+//     else _homepageMounted = true;
+//   }
+// });
+
+
 
 //   // END
 // });
