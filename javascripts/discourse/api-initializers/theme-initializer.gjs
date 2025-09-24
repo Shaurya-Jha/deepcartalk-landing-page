@@ -282,11 +282,36 @@ export default apiInitializer((api) => {
             .box-content { padding: 15px; }
 
             /* Carousel */
+            // .carousel { position: relative; overflow: hidden; border-radius: 10px; }
+            // .carousel-track { display: flex; transition: transform 0.6s ease; will-change: transform; }
+            // .carousel-item { flex-shrink: 0; width: 100%; }
+            // /* use fixed visual height with object-fit so cropping is predictable on mobile */
+            // .carousel-item img { width: 100%; height: 380px; object-fit: cover; display: block; }
+            /* Carousel - fully responsive, no JS width calculations */
             .carousel { position: relative; overflow: hidden; border-radius: 10px; }
-            .carousel-track { display: flex; transition: transform 0.6s ease; will-change: transform; }
-            .carousel-item { flex-shrink: 0; width: 100%; }
-            /* use fixed visual height with object-fit so cropping is predictable on mobile */
-            .carousel-item img { width: 100%; height: 380px; object-fit: cover; display: block; }
+            .carousel-track {
+              display: flex;
+              flex-wrap: nowrap;
+              transition: transform 0.6s ease;
+              will-change: transform;
+              /* let the track size naturally; do NOT set width here */
+            }
+            .carousel-item {
+              /* each item occupies the full carousel viewport width */
+              flex: 0 0 100%;
+              max-width: 100%;
+              box-sizing: border-box;
+            }
+
+            /* responsive image sizing via aspect-ratio */
+            .carousel-item img {
+              width: 100%;
+              height: auto;
+              aspect-ratio: 16/9; /* keeps a consistent visible height without fixed px */
+              object-fit: cover;
+              display: block;
+            }
+
 
             /* smaller carousel on narrow screens */
             @media (max-width: 900px) {
@@ -614,284 +639,109 @@ export default apiInitializer((api) => {
     });
   }
 
-
-  // function initNewsCategories() {
-  //   // <-- change these to your desired categories (slugs or ids). Use slugs if possible.
-  //   // Example: slugs for your forum categories like 'news', 'announcements', 'members'
-  //   const categories = [
-  //     { key: "catA", title: "Travelogues", slug: "travelogues" },
-  //     // { key: "catB", title: "Latest", slug: "latest" },
-  //     { key: "catB", title: "Technical Stuff", slug: "technical-stuff" },
-  //     { key: "catC", title: "Owner Reports", slug: "owner-reports" },
-  //   ];
-
-  //   const tabsContainer = document.getElementById("category-tabs");
-  //   const grid = document.getElementById("news-grid");
-  //   const viewAllLink = document.getElementById("view-all-link");
-  //   if (!tabsContainer || !grid) return;
-
-  //   // render tabs
-  //   tabsContainer.innerHTML = categories.map((c, idx) => {
-  //     return `<a data-idx="${idx}" class="${idx === 0 ? "active" : ""}">${c.title}</a>`;
-  //   }).join("");
-
-  //   // helper: try a couple of endpoints to fetch topics for a category slug
-  //   function fetchCategoryTopics(slug, limit = 9) {
-  //     // primary: category listing (common Discourse endpoint)
-  //     const endpoints = [
-  //       // `/c/${encodeURIComponent(slug)}/l/latest.json`,
-  //       `/c/${encodeURIComponent(slug)}.json`,
-  //       // `/latest.json?category=${encodeURIComponent(slug)}`,
-  //     ];
-
-  //     // try endpoints sequentially until one returns topics
-  //     let chain = Promise.reject();
-  //     endpoints.forEach(ep => {
-  //       chain = chain.catch(() => ajax(ep).then(resp => {
-  //         // normalize to a topics array wherever the data sits
-  //         if (resp.topic_list?.topics) return resp.topic_list.topics.slice(0, limit);
-  //         if (Array.isArray(resp.topic_list)) return resp.topic_list.slice(0, limit);
-  //         if (resp.topics) return resp.topics.slice(0, limit);
-  //         // some category endpoints put topics under `category.topic_list`
-  //         if (resp.category && resp.category.topic_list) return resp.category.topic_list.slice(0, limit);
-  //         // fallback: return empty to try next
-  //         return Promise.reject(new Error("no-topics"));
-  //       }));
-  //     });
-
-  //     // final fallback: resolve to empty array
-  //     return chain.catch(() => Promise.resolve([]));
-  //   }
-
-  //   // Render function (replaces your old one)
-  //   function renderCategoryGrid(topics, category, options = {}) {
-  //     // options: { columns: 2|3 }
-  //     if (!grid) return;
-  //     const columns = options.columns || GRID_COLUMNS || 3;
-  //     grid.style.setProperty('--cols', columns);
-
-  //     if (!topics || topics.length === 0) {
-  //       grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No topics found for "${category?.title || 'category'}".</div>`;
-  //       if (viewAllLink) viewAllLink.href = "#";
-  //       return;
-  //     }
-
-  //     const itemsHtml = topics.slice(0, GRID_MAX_ITEMS).map(t => {
-  //       const title = (t.title || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  //       const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || (`/t/${t.id}`));
-  //       const postsCount = t.posts_count ?? t.post_count ?? "";
-  //       const poster = (t.details && t.details.last_posted_by) ? t.details.last_posted_by.username : (t.created_by?.username || "");
-  //       const bumped = t.bumped_at || t.created_at || "";
-
-  //       // pick media - robust
-  //       let mediaType = "image";
-  //       let mediaSrc = t.image_url || t.image || (t.details && t.details.small_image_url) || "";
-
-  //       // look into some possible fields / excerpt for video or image urls
-  //       const candidates = [
-  //         t.video_url,
-  //         t.custom_thumbnail,
-  //         t.featured_media,
-  //         ...(t.post_stream?.posts?.length ? [t.post_stream.posts[0].cooked] : []), // if available in payload
-  //         t.excerpt,
-  //         t.fancy_title,
-  //         t.link
-  //       ].filter(Boolean);
-
-  //       // try candidates for video first
-  //       for (const c of candidates) {
-  //         if (!mediaSrc && isVideoFile(c)) { mediaType = "video"; mediaSrc = c; break; }
-  //         if (!mediaSrc) {
-  //           const yt = youtubeThumbnail(c);
-  //           if (yt) { mediaType = "video"; mediaSrc = yt; break; }
-  //         }
-  //         if (!mediaSrc && isVimeo(c)) {
-  //           mediaType = "video";
-  //           mediaSrc = PLACEHOLDER; // vimeo thumb requires API; fallback to placeholder
-  //           break;
-  //         }
-  //         // try image inside HTML/excerpt
-  //         if (!mediaSrc && typeof c === 'string') {
-  //           const imgMatch = c.match(/https?:\/\/\S+\.(?:png|jpe?g|gif)(\?\S*)?/i);
-  //           if (imgMatch) { mediaSrc = imgMatch[0]; mediaType = "image"; break; }
-  //         }
-  //       }
-
-  //       if (!mediaSrc) {
-  //         mediaSrc = PLACEHOLDER;
-  //         mediaType = "image";
-  //       }
-
-  //       const alt = `Topic: ${t.title || "Untitled"}`;
-  //       const playOverlay = mediaType === "video" ? `<div class="play-overlay" aria-hidden="true">▶</div>` : "";
-
-  //       return `
-  //         <div class="news-item">
-  //           <a href="${url}" class="thumb" aria-label="${alt}">
-  //             <img loading="lazy" src="${mediaSrc}" alt="${alt}" onerror="this.onerror=null;this.src='${PLACEHOLDER}';">
-  //             ${playOverlay}
-  //           </a>
-  //           <a href="${url}" class="title">${title}</a>
-  //           <div class="meta">${poster ? poster + " · " : ""}${postsCount ? postsCount + " posts · " : ""}${bumped ? new Date(bumped).toLocaleDateString() : ""}</div>
-  //         </div>
-  //       `;
-  //     }).join("");
-
-  //     grid.innerHTML = itemsHtml;
-  //     if (viewAllLink && category && category.slug) viewAllLink.href = `/c/${encodeURIComponent(category.slug)}`;
-  //   }
-
-  //   // Render function (only show topics that have an image)
-  //   function renderCategoryGrid(topics, category, options = {}) {
-  //     if (!grid) return;
-  //     const columns = options.columns || GRID_COLUMNS || 3;
-  //     grid.style.setProperty('--cols', columns);
-
-  //     if (!Array.isArray(topics) || topics.length === 0) {
-  //       grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No topics found for "${category?.title || 'category'}".</div>`;
-  //       if (viewAllLink) viewAllLink.href = "#";
-  //       return;
-  //     }
-
-  //     // helper: detect if a topic has a usable image URL
-  //     function topicHasImage(t) {
-  //       if (!t) return false;
-  //       // common direct fields
-  //       if (t.image_url || t.image) return true;
-  //       if (t.details && (t.details.small_image_url || t.details.image_url)) return true;
-
-  //       // try excerpt / cooked html / featured_media for image urls
-  //       const candidates = [
-  //         t.excerpt,
-  //         t.fancy_title,
-  //         t.featured_media,
-  //         ...(t.post_stream && t.post_stream.posts && t.post_stream.posts.length ? [t.post_stream.posts[0].cooked] : []),
-  //         t.custom_thumbnail,
-  //         t.link
-  //       ].filter(Boolean);
-
-  //       for (const c of candidates) {
-  //         if (typeof c !== "string") continue;
-  //         // match typical image urls
-  //         const imgMatch = c.match(/https?:\/\/\S+\.(?:png|jpe?g|gif)(\?\S*)?/i);
-  //         if (imgMatch) return true;
-  //         // match <img src="..."> in cooked HTML
-  //         if (/<img\s+[^>]*src=/i.test(c)) return true;
-  //       }
-
-  //       return false;
-  //     }
-
-  //     // filter topics to only those that have images, preserve original order
-  //     const withImages = topics.filter(topicHasImage);
-
-  //     if (withImages.length === 0) {
-  //       grid.innerHTML = `<div style="grid-column: 1 / -1; color: #aaa">No topics found for "${category?.title || 'category'}".</div>`;
-  //       if (viewAllLink) viewAllLink.href = "#";
-  //       return;
-  //     }
-
-  //     const itemsHtml = withImages.slice(0, GRID_MAX_ITEMS).map(t => {
-  //       const title = (t.title || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  //       const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || (`/t/${t.id}`));
-  //       const postsCount = t.posts_count ?? t.post_count ?? "";
-  //       const poster = (t.details && t.details.last_posted_by) ? t.details.last_posted_by.username : (t.created_by?.username || "");
-  //       const bumped = t.bumped_at || t.created_at || "";
-
-  //       // find image for the card (same logic as topicHasImage but returning the url if possible)
-  //       let mediaSrc = t.image_url || t.image || (t.details && (t.details.small_image_url || t.details.image_url)) || "";
-
-  //       const candidates = [
-  //         t.custom_thumbnail,
-  //         t.featured_media,
-  //         ...(t.post_stream && t.post_stream.posts && t.post_stream.posts.length ? [t.post_stream.posts[0].cooked] : []),
-  //         t.excerpt,
-  //         t.fancy_title,
-  //         t.link
-  //       ].filter(Boolean);
-
-  //       for (const c of candidates) {
-  //         if (!mediaSrc && typeof c === 'string') {
-  //           const imgMatch = c.match(/(https?:\/\/\S+\.(?:png|jpe?g|gif)(\?\S*)?)/i);
-  //           if (imgMatch) { mediaSrc = imgMatch[1]; break; }
-  //           // try to extract src from <img ... src="...">
-  //           const imgTagMatch = c.match(/<img\s+[^>]*src=(?:'|")([^'"]+)(?:'|")/i);
-  //           if (imgTagMatch) { mediaSrc = imgTagMatch[1]; break; }
-  //         }
-  //       }
-
-  //       // final fallback to placeholder (shouldn't happen due to filtering, but safe)
-  //       if (!mediaSrc) mediaSrc = PLACEHOLDER;
-
-  //       const alt = `Topic: ${t.title || "Untitled"}`;
-  //       // mediaType detection for overlay (simple)
-  //       const mediaType = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(mediaSrc) ? "video" : "image";
-  //       const playOverlay = mediaType === "video" ? `<div class="play-overlay" aria-hidden="true">▶</div>` : "";
-
-  //       return `
-  //         <div class="news-item">
-  //           <a href="${url}" class="thumb" aria-label="${alt}">
-  //             <img loading="lazy" src="${mediaSrc}" alt="${alt}" onerror="this.onerror=null;this.src='${PLACEHOLDER}';">
-  //             ${playOverlay}
-  //           </a>
-  //           <a href="${url}" class="title">${title}</a>
-  //           <div class="meta">${poster ? poster + " · " : ""}${postsCount ? postsCount + " posts · " : ""}${bumped ? new Date(bumped).toLocaleDateString() : ""}</div>
-  //         </div>
-  //       `;
-  //     }).join("");
-
-  //     grid.innerHTML = itemsHtml;
-  //     if (viewAllLink && category && category.slug) viewAllLink.href = `/c/${encodeURIComponent(category.slug)}`;
-  //   }
-
-
-  //   // initial load for the first tab
-  //   const firstCategory = categories[0];
-  //   fetchCategoryTopics(firstCategory.slug).then(topics => renderCategoryGrid(topics, firstCategory)).catch(() => renderCategoryGrid([], firstCategory));
-
-  //   // tab clicks
-  //   Array.from(tabsContainer.querySelectorAll("a")).forEach(a => {
-  //     a.addEventListener("click", (ev) => {
-  //       ev.preventDefault();
-  //       const idx = parseInt(a.dataset.idx, 10);
-  //       if (isNaN(idx)) return;
-  //       // set active classes
-  //       Array.from(tabsContainer.querySelectorAll("a")).forEach(x => x.classList.remove("active"));
-  //       a.classList.add("active");
-
-  //       const cat = categories[idx];
-  //       // optimistic UI while fetching
-  //       grid.innerHTML = `<div style="grid-column:1/-1;color:#999">Loading ${cat.title}…</div>`;
-  //       fetchCategoryTopics(cat.slug).then(topics => renderCategoryGrid(topics, cat)).catch(() => renderCategoryGrid([], cat));
-  //     });
-  //   });
-  // }
-
   // --- CAROUSEL INIT ---
   function initCarousel() {
     const track = document.querySelector('.carousel-track');
     const items = Array.from(document.querySelectorAll('.carousel-item'));
     const title = document.getElementById('carousel-title');
     if (!track || items.length === 0) return;
-    track.style.width = `${items.length * 100}%`;
-    items.forEach(item => item.style.width = `${100 / items.length}%`);
+
+    // ensure items use the CSS flex sizing; remove any inline width set earlier
+    items.forEach(item => {
+      item.style.width = ""; // clear any previous inline width
+      item.style.flex = "0 0 100%";
+    });
+    track.style.width = ""; // clear previous inline width if present
+
     const titles = items.map(item => item.dataset.title || "");
+
     let currentIndex = 0;
     const intervalTime = 3000;
-    function updateCarousel() {
-      const shiftPercent = (100 / items.length) * currentIndex;
+    let observer = null;
+    let resizeObserver = null;
+
+    function updateCarouselVisual() {
+      // translate by percentage of viewport (each item = 100%)
+      const shiftPercent = currentIndex * 100;
       track.style.transform = `translateX(-${shiftPercent}%)`;
       if (title && titles.length > 0) title.textContent = titles[currentIndex] || "";
     }
+
     function nextSlide() {
       currentIndex = (currentIndex + 1) % items.length;
-      updateCarousel();
+      updateCarouselVisual();
     }
-    updateCarousel();
-    // clear any previous interval
+
+    // clear previous interval if any
     if (_carouselIntervalId) clearInterval(_carouselIntervalId);
     _carouselIntervalId = setInterval(nextSlide, intervalTime);
+
+    // ensure transform is correct on init
+    updateCarouselVisual();
+
+    // Recalculate visual transform on resize (keeps the current slide centered if container width changes)
+    if (window.ResizeObserver) {
+      // use ResizeObserver on the carousel container to re-apply the same percentage transform
+      try {
+        const carouselEl = document.querySelector('.carousel');
+        resizeObserver = new ResizeObserver(() => {
+          // reapply transform (percentage-based, so this keeps correct slide)
+          updateCarouselVisual();
+        });
+        if (carouselEl) resizeObserver.observe(carouselEl);
+      } catch (e) {
+        // ignore RO errors
+      }
+    } else {
+      // fallback: window resize event
+      window.addEventListener('resize', updateCarouselVisual);
+    }
+
+    // optional: allow clicking items to jump to index (if you want)
+    items.forEach((item, idx) => {
+      item.addEventListener('click', (ev) => {
+        // example behavior: go to clicked slide
+        currentIndex = idx;
+        updateCarouselVisual();
+      });
+    });
+
+    // cleanup helper if you ever want to stop the carousel
+    // (kept local — not automatically invoked here)
+    function destroy() {
+      if (_carouselIntervalId) { clearInterval(_carouselIntervalId); _carouselIntervalId = null; }
+      if (resizeObserver && resizeObserver.disconnect) resizeObserver.disconnect();
+      window.removeEventListener('resize', updateCarouselVisual);
+    }
+
+    // store destroy on track for potential later use (optional)
+    track.__carouselDestroy = destroy;
   }
+
+  // function initCarousel() {
+  //   const track = document.querySelector('.carousel-track');
+  //   const items = Array.from(document.querySelectorAll('.carousel-item'));
+  //   const title = document.getElementById('carousel-title');
+  //   if (!track || items.length === 0) return;
+  //   track.style.width = `${items.length * 100}%`;
+  //   items.forEach(item => item.style.width = `${100 / items.length}%`);
+  //   const titles = items.map(item => item.dataset.title || "");
+  //   let currentIndex = 0;
+  //   const intervalTime = 3000;
+  //   function updateCarousel() {
+  //     const shiftPercent = (100 / items.length) * currentIndex;
+  //     track.style.transform = `translateX(-${shiftPercent}%)`;
+  //     if (title && titles.length > 0) title.textContent = titles[currentIndex] || "";
+  //   }
+  //   function nextSlide() {
+  //     currentIndex = (currentIndex + 1) % items.length;
+  //     updateCarousel();
+  //   }
+  //   updateCarousel();
+  //   // clear any previous interval
+  //   if (_carouselIntervalId) clearInterval(_carouselIntervalId);
+  //   _carouselIntervalId = setInterval(nextSlide, intervalTime);
+  // }
 
   // helpers to mount/unmount safely
   function mountHomepage() {
