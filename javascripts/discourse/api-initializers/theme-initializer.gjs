@@ -229,11 +229,24 @@ export default apiInitializer((api) => {
         const main = document.getElementById("homepage-main");
         if (!main) return;
 
-        const carouselItemsHtml = topicsWithImages.map(t => `
-          <div class="carousel-item" data-title="${(t.title || "").replace(/"/g, "&quot;")}" data-topic-id="${t.id}">
-            <img src="${t.image_url}" alt="${(t.title || "").replace(/"/g, "&quot;")}" loading="lazy">
-          </div>
-        `).join("");
+        const carouselItemsHtml = topicsWithImages.map(t => {
+          const title = (t.title || "").replace(/"/g, "&quot;");
+          const topicUrl = `/t/${t.slug || ""}/${t.id}`; // fallback: `/t/${t.id}`
+          return `
+            <div class="carousel-item" data-title="${title}" data-topic-id="${t.id}">
+              <a href="${topicUrl}">
+                <img src="${t.image_url}" alt="${title}" loading="lazy">
+              </a>
+            </div>
+          `;
+        }).join("");
+
+
+        // const carouselItemsHtml = topicsWithImages.map(t => `
+        //   <div class="carousel-item" data-title="${(t.title || "").replace(/"/g, "&quot;")}" data-topic-id="${t.id}">
+        //     <img src="${t.image_url}" alt="${(t.title || "").replace(/"/g, "&quot;")}" loading="lazy">
+        //   </div>
+        // `).join("");
 
         main.innerHTML = `
           <style>
