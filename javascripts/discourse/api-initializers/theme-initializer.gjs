@@ -262,7 +262,8 @@ export default apiInitializer((api) => {
             /* layout root */
             .main-container {
               width: 100%;
-              max-width: 1100px;
+              // max-width: 1100px;
+              max-width: w-full;
               margin: 20px auto;
               padding: 0 16px;
               display: grid;
