@@ -220,6 +220,41 @@ export default apiInitializer((api) => {
       });
   }
 
+  const SPINNER_HTML = `
+    <div class="hc-spinner-wrap" role="status" aria-live="polite" aria-busy="true">
+      <style>
+        /* spinner container centered */
+        .hc-spinner-wrap {
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          padding:32px 16px;
+          color: #ccc;
+          background: transparent;
+        }
+        /* simple ring spinner */
+        .hc-spinner {
+          width:48px;
+          height:48px;
+          border-radius:50%;
+          border:5px solid rgba(255,255,255,0.08);
+          border-top-color: rgba(255,255,255,0.65);
+          animation: hc-spin 1s linear infinite;
+          margin-right:12px;
+          box-sizing: border-box;
+        }
+        @keyframes hc-spin { to { transform: rotate(360deg); } }
+
+        .hc-spinner-msg { font-size:0.95rem; color:#bfbfbf; }
+        /* smaller inline spinner used inside the carousel box while images load */
+        .hc-inline-spinner { width:28px; height:28px; border-width:4px; margin:0; }
+      </style>
+
+      <div class="hc-spinner" aria-hidden="true"></div>
+      <div class="hc-spinner-msg">Loading homepage…</div>
+    </div>
+  `;
+
 
   // --- TOP 5 / CAROUSEL (unchanged above this point) ---
   function loadTop5() {
@@ -235,6 +270,11 @@ export default apiInitializer((api) => {
         document.body.insertBefore(container, first);
       }
     }
+
+    // show spinner immediately while we fetch data
+    const main = document.getElementById("homepage-main");
+    if (!main) return;
+    main.innerHTML = SPINNER_HTML; // <-- spinner shown immediately
 
     // ajax("/top/monthly.json")
     ajax("/latest.json")
@@ -252,6 +292,9 @@ export default apiInitializer((api) => {
             <div class="carousel-item" data-title="${title}" data-topic-id="${t.id}">
               <a href="${topicUrl}">
                 <img src="${imgSrc}" alt="${title}" loading="lazy">
+                <div style="position:absolute;left:8px;top:8px;">
+                  <div class="hc-spinner hc-inline-spinner" aria-hidden="true"></div>
+                </div>
               </a>
             </div>
           `;
@@ -260,17 +303,6 @@ export default apiInitializer((api) => {
         main.innerHTML = `
           <style>
             /* layout root */
-            // .main-container {
-            //   width: 100%;
-            //   max-width: 1100px;
-            //   margin: 20px auto;
-            //   padding: 0 16px;
-            //   display: grid;
-            //   grid-template-columns: 660px 300px;
-            //   gap: 20px;
-            //   box-sizing: border-box;
-            // }
-
             /* REPLACE your .main-container block with this (no hardcoded max-width) */
             .main-container {
               width: 100%;
@@ -360,9 +392,6 @@ export default apiInitializer((api) => {
             }
 
             /* smaller carousel on narrow screens */
-            // @media (max-width: 900px) {
-            //   .carousel-item img { height: 260px; }
-            // }
             @media (max-width: 480px) {
               .carousel-item img { height: 180px; }
             }
@@ -441,20 +470,6 @@ export default apiInitializer((api) => {
             .hot-threads a { display: flex; justify-content: space-between; padding: 10px 15px; color: #ccc; text-decoration: none; border-radius: 6px; }
 
             /* Responsive: collapse to single column on small screens */
-            // @media (max-width: 900px) {
-            //   .main-container {
-            //     grid-template-columns: 1fr;
-            //   }
-            //   /* stack carousel and updates first, then hot post */
-            //   .left-column { order: 0; }
-            //   .right-column { order: 1; }
-            //   /* make news grid single column */
-            //   .news-grid { grid-template-columns: 1fr !important; }
-            //   /* enlarge titles/hits for touch */
-            //   .news-tabs a { padding: 12px 10px; font-size: 0.95rem; }
-            //   .view-all { text-align: left; }
-            // }
-
             /* Ultra small screens improvements */
             @media (max-width: 480px) {
               .box-header { font-size: 1rem; padding: 8px 10px; }
