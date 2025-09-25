@@ -32,14 +32,34 @@ function youtubeThumbnail(url) {
 function isVimeo(url) { return /vimeo\.com\/\d+/.test(url); }
 function isVideoFile(url) { return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url); }
 
-// simple emoji helpers + hot threads (minimal)
-/** escape HTML for safety */
-function escapeHtml(s) {
+// // simple emoji helpers + hot threads (minimal)
+// /** escape HTML for safety */
+// function escapeHtml(s) {
+//   return (s || "")
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;")
+//     .replace(/"/g, "&quot;")
+// }
+
+function decodeHtmlEntities(str) {
+  // turns "&rsquo;" or "&#8217;" into the real character
+  const txt = document.createElement("textarea");
+  txt.innerHTML = String(str || "");
+  return txt.value;
+}
+
+function hasHtmlEntity(str) {
+  return /&[A-Za-z0-9#]{2,10};/.test(String(str || ""));
+}
+
+// escape but DON'T replace apostrophe (avoid converting ' -> &#39; or unicode ’ -> &rsquo;)
+function escapeHtmlKeepApostrophe(s) {
   return (s || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/"/g, "&quot;");
 }
 
 let _primaryEmojiMap = null; // canonical name -> { url }
@@ -175,49 +195,97 @@ export default apiInitializer((api) => {
 
   // --- HOT THREADS ---
   function loadHotThreads(limit = 10) {
-    // load emojis and hot topics in parallel (we still load emojis for fallback)
-    Promise.all([ loadCustomEmojisOnce(), ajax("/hot.json") ])
-      .then(([customMap, resp]) => {
-        const topics = (resp.topic_list?.topics || []).slice(0, limit);
-        const ul = document.querySelector(".hot-threads .box-content ul");
-        if (!ul) return;
+  Promise.all([ loadCustomEmojisOnce(), ajax("/hot.json") ])
+    .then(([customMap, resp]) => {
+      const topics = (resp.topic_list?.topics || []).slice(0, limit);
+      const ul = document.querySelector(".hot-threads .box-content ul");
+      if (!ul) return;
 
-        if (topics.length === 0) {
-          ul.innerHTML = `<li style="color:#aaa;padding:10px;">No hot threads right now.</li>`;
-          return;
+      if (topics.length === 0) {
+        ul.innerHTML = `<li style="color:#aaa;padding:10px;">No hot threads right now.</li>`;
+        return;
+      }
+
+      ul.innerHTML = topics.map(t => {
+        // Prefer unicode_title (actual emoji chars), then fancy_title, then title
+        const unicode = t.unicode_title;
+        let raw = unicode ?? t.fancy_title ?? t.title ?? "";
+
+        // If server sent HTML entities like &rsquo; decode them into real characters
+        if (hasHtmlEntity(raw)) {
+          raw = decodeHtmlEntities(raw);
         }
 
-        ul.innerHTML = topics.map(t => {
-          // prefer unicode_title (server-rendered emoji glyphs), then fancy_title, then title
-          const unicode = t.unicode_title;
-          const raw = unicode || t.fancy_title || t.title || "";
+        // Escape for safety but DO NOT convert apostrophes to entities
+        // (keeps ' and curly ’ characters as actual characters)
+        const escapedForHtml = escapeHtmlKeepApostrophe(String(raw));
 
-          // If we have a unicode_title, use it directly (escape for HTML but keep the emoji glyphs).
-          // If not, fall back to escaping + replacing shortcodes via emoji map.
-          let processed;
-          if (unicode) {
-            // escape (safe) — emoji characters are preserved by escapeHtml
-            processed = escapeHtml(String(unicode));
-          } else {
-            const escaped = escapeHtml(String(raw));
-            processed = replaceShortcodesWithImages(escaped, customMap);
-          }
+        // Replace shortcodes like :smile: -> <img ...>
+        // replaceShortcodesWithImages expects escaped text (so it doesn't allow unescaped HTML)
+        const processed = replaceShortcodesWithImages(escapedForHtml, customMap);
 
-          const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || (`/t/${t.id}`));
-          return `
-            <li>
-              <a href="${url}">
-                <span>${processed}</span>
-                <span>►</span>
-              </a>
-            </li>
-          `;
-        }).join("");
-      })
-      .catch((err) => {
-        console.error("[hot-threads] fetch failed", err);
-      });
-  }
+        const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || `/t/${t.id}`);
+        // If URL may contain spaces or unicode, consider encodeURI(url) here
+
+        return `
+          <li>
+            <a href="${url}">
+              <span>${processed}</span>
+              <span>►</span>
+            </a>
+          </li>
+        `;
+      }).join("");
+    })
+    .catch((err) => {
+      console.error("[hot-threads] fetch failed", err);
+    });
+}
+
+  // function loadHotThreads(limit = 10) {
+  //   // load emojis and hot topics in parallel (we still load emojis for fallback)
+  //   Promise.all([ loadCustomEmojisOnce(), ajax("/hot.json") ])
+  //     .then(([customMap, resp]) => {
+  //       const topics = (resp.topic_list?.topics || []).slice(0, limit);
+  //       const ul = document.querySelector(".hot-threads .box-content ul");
+  //       if (!ul) return;
+
+  //       if (topics.length === 0) {
+  //         ul.innerHTML = `<li style="color:#aaa;padding:10px;">No hot threads right now.</li>`;
+  //         return;
+  //       }
+
+  //       ul.innerHTML = topics.map(t => {
+  //         // prefer unicode_title (server-rendered emoji glyphs), then fancy_title, then title
+  //         const unicode = t.unicode_title;
+  //         const raw = unicode || t.fancy_title || t.title || "";
+
+  //         // If we have a unicode_title, use it directly (escape for HTML but keep the emoji glyphs).
+  //         // If not, fall back to escaping + replacing shortcodes via emoji map.
+  //         let processed;
+  //         if (unicode) {
+  //           // escape (safe) — emoji characters are preserved by escapeHtml
+  //           processed = escapeHtml(String(unicode));
+  //         } else {
+  //           const escaped = escapeHtml(String(raw));
+  //           processed = replaceShortcodesWithImages(escaped, customMap);
+  //         }
+
+  //         const url = t.slug ? `/t/${t.slug}/${t.id}` : (t.url || (`/t/${t.id}`));
+  //         return `
+  //           <li>
+  //             <a href="${url}">
+  //               <span>${processed}</span>
+  //               <span>►</span>
+  //             </a>
+  //           </li>
+  //         `;
+  //       }).join("");
+  //     })
+  //     .catch((err) => {
+  //       console.error("[hot-threads] fetch failed", err);
+  //     });
+  // }
 
   function showHomepageSpinner() {
     // if spinner already present, don't add again
