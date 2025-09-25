@@ -298,7 +298,7 @@ export default apiInitializer((api) => {
       }
     }
 
-    ajax("/top/weekly.json")
+    ajax("/top/monthly.json")
     // ajax("/latest.json")
       .then((response) => {
 
